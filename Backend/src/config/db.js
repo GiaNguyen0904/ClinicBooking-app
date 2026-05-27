@@ -1,13 +1,21 @@
-const mysql = require("mysql2/promise");
-const env = require("./env");
+const mysql = require('mysql2');
 
-const pool = mysql.createPool({
-  host: env.DB_HOST,
-  user: env.DB_USER,
-  password: env.DB_PASSWORD,
-  database: env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
+const con = mysql.createConnection({
+  host: 'localhost',
+  port: '3306',
+  user: 'root',
+  password: '123456',
+  insecureAuth: true,
+  database: 'PhongKham'
 });
 
-module.exports = pool;
+con.connect(err => {
+  if (err) {
+    console.error('Kết nối MySQL thất bại:', err.stack);
+    return;
+  }
+
+  console.log('Đã kết nối MySQL với id ' + con.threadId);
+});
+
+module.exports = con; 
