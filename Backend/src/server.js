@@ -1,8 +1,6 @@
 const app = require("./app");
 const con = require("./config/db");
 
-
-
 // =========================
 // API ĐĂNG NHẬP
 // =========================
