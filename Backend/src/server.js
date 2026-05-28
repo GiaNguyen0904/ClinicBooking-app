@@ -1,21 +1,6 @@
-var express = require('express');
-var bodyParser = require('body-parser');
-var cors = require('cors');
+const app = require("./app");
+const con = require("./config/db");
 
-var con = require('./config/db');
-
-var appointmentRoutes = require('./routes/appointment.routes');
-
-var app = express();
-
-app.use(cors());
-app.use(bodyParser.json());
-
-app.use('/api/appointments', appointmentRoutes);
-
-app.get('/', (req, res) => {
-    res.send('API running...');
-});
 
 
 // =========================

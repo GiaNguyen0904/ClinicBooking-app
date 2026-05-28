@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 
 const findDoctorById = async (doctorId) => {
-  const [rows] = await pool.query(
+  const [rows] = await pool.promise().query(
     `SELECT *
      FROM BacSi
      WHERE MaBacSi = ?`,
