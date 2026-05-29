@@ -1,7 +1,10 @@
+import { useFocusEffect } from "@react-navigation/native"
 import React, {
   useEffect,
   useState,
+  useCallback,
 } from "react";
+;
 
 import {
   View,
@@ -52,9 +55,11 @@ const DoctorList = ({
     }
   };
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     loadDoctors();
-  }, []);
+  }, [])
+);
 
   const handleDelete = async (id) => {
     try {

@@ -61,32 +61,7 @@ const ScheduleList = () => {
     setModalVisible(true);
   };
 
-const handleDelete = (id) => {
-  Alert.alert(
-    "Xóa khung giờ",
-    "Bạn có chắc muốn xóa?",
-    [
-      {
-        text: "Hủy",
-      },
 
-      {
-        text: "Xóa",
-
-        onPress: () => {
-          dispatch(
-            deleteScheduleThunk(id)
-          );
-        },
-      },
-    ]
-  );
-};
-if (loading) {
-  return (
-    <Text>Loading...</Text>
-  );
-}
 
 if (error) {
   return <Text>{error}</Text>;
@@ -116,11 +91,10 @@ if (error) {
     if (!item) return null;
 
     return (
-      <ScheduleCard
-        item={item}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+     <ScheduleCard
+  item={item}
+  onEdit={handleEdit}
+/>
     );
   }}
 />

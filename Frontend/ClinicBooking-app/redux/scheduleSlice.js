@@ -102,30 +102,97 @@ const scheduleSlice = createSlice({
   initialState,
   reducers: {},
 
-  extraReducers: (builder) => {
-    builder
+ extraReducers: (builder) => {
+  builder
 
-      // FETCH
-      .addCase(fetchSchedules.fulfilled, (state, action) => {
+    // FETCH
+    .addCase(
+      fetchSchedules.pending,
+      (state) => {
+        state.loading = true;
+        state.error = null;
+      }
+    )
+
+    .addCase(
+      fetchSchedules.fulfilled,
+      (state, action) => {
         state.loading = false;
-        state.schedules = Array.isArray(action.payload?.data)
-          ? action.payload.data
-          : [];
-      })
 
-      // AVAILABLE
-      .addCase(fetchAvailableSchedules.fulfilled, (state, action) => {
-        state.availableSchedules = Array.isArray(action.payload?.data)
-          ? action.payload.data
-          : [];
-      })
+        state.schedules =
+          Array.isArray(
+            action.payload?.data
+          )
+            ? action.payload.data
+            : [];
+      }
+    )
 
-      // ERROR SAFE
-      .addCase(fetchSchedules.rejected, (state, action) => {
+    .addCase(
+      fetchSchedules.rejected,
+      (state, action) => {
         state.loading = false;
-        state.error = action.payload || "Error";
-      });
-  },
+
+        state.error =
+          action.payload || "Error";
+      }
+    )
+
+    // AVAILABLE
+    .addCase(
+      fetchAvailableSchedules.fulfilled,
+      (state, action) => {
+        state.availableSchedules =
+          Array.isArray(
+            action.payload?.data
+          )
+            ? action.payload.data
+            : [];
+      }
+    )
+
+    // CREATE
+ .addCase(
+  createScheduleThunk.fulfilled,
+  (state) => {
+    state.loading = false;
+  }
+)
+
+    // UPDATE
+    .addCase(
+      updateScheduleThunk.fulfilled,
+      (state, action) => {
+        const updatedSchedule =
+          action.payload?.data;
+
+        const index =
+          state.schedules.findIndex(
+            (item) =>
+              item.MaKhungGio ===
+              updatedSchedule.MaKhungGio
+          );
+
+        if (index !== -1) {
+          state.schedules[index] =
+            updatedSchedule;
+        }
+      }
+    )
+
+    // DELETE
+    .addCase(
+      deleteScheduleThunk.fulfilled,
+      (state, action) => {
+        state.schedules =
+          state.schedules.filter(
+            (item) =>
+              item.MaKhungGio !==
+              action.payload
+          );
+      }
+    );
+},
 });
 
 export default scheduleSlice.reducer;

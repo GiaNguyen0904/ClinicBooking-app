@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const BASE_URL =
-  "http://10.106.39.177:5555/api/schedules";
+  "http://10.106.39.171:5555/api/schedules";
 
 const getSchedules = async () => {
   const response = await axios.get(

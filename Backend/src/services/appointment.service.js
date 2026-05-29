@@ -8,38 +8,154 @@ const appointmentService = {
     return await appointmentModel.getAvailableSlots(MaBacSi, Ngay);
   },
 
-  async createAppointment(data) {
-    const { MaBenhNhan, MaBacSi, MaKhungGio, NgayHen, DichVu = [] } = data;
+ async createAppointment(data) {
+  const {
+    MaBenhNhan,
+    MaBacSi,
+    MaKhungGio,
+    NgayHen,
+    DichVu = [],
+  } = data;
 
-    const patient = await appointmentModel.getPatientById(MaBenhNhan);
-    if (patient.length === 0) throw new Error('Bệnh nhân không tồn tại');
+  // CHECK BỆNH NHÂN
+  const patient =
+    await appointmentModel.getPatientById(
+      MaBenhNhan
+    );
 
-    const doctor = await appointmentModel.getDoctorById(MaBacSi);
-    if (doctor.length === 0) throw new Error('Bác sĩ không tồn tại');
+  if (patient.length === 0) {
+    throw new Error(
+      'Bệnh nhân không tồn tại'
+    );
+  }
 
-    const activeCount = await appointmentModel.countActiveAppointments(MaBenhNhan);
-    if (activeCount[0].total >= MAX_ACTIVE_APPOINTMENTS) throw new Error('Mỗi bệnh nhân chỉ được có tối đa 3 lịch hẹn đang hoạt động');
+  // CHECK BÁC SĨ
+  const doctor =
+    await appointmentModel.getDoctorById(
+      MaBacSi
+    );
 
-    const slot = await appointmentModel.getSlotWithBookedCount(MaKhungGio);
-    if (slot.length === 0) throw new Error('Khung giờ không tồn tại');
-    if (slot[0].MaBacSi !== Number(MaBacSi)) throw new Error('Khung giờ không thuộc bác sĩ này');
-    if (slot[0].SoLuongDaDat >= slot[0].SoLuongToiDa) throw new Error('Khung giờ này đã đầy');
+  if (doctor.length === 0) {
+    throw new Error(
+      'Bác sĩ không tồn tại'
+    );
+  }
 
-    if (DichVu.length > 0) {
-      const serviceIds = DichVu.map(item => item.MaDichVu);
-      const services = await appointmentModel.getServicesByIds(serviceIds);
-      if (services.length !== serviceIds.length) throw new Error('Có dịch vụ không tồn tại');
+  // GIỚI HẠN LỊCH ĐANG HOẠT ĐỘNG
+  const activeCount =
+    await appointmentModel.countActiveAppointments(
+      MaBenhNhan
+    );
+
+  if (
+    activeCount[0].total >=
+    MAX_ACTIVE_APPOINTMENTS
+  ) {
+    throw new Error(
+      'Mỗi bệnh nhân chỉ được có tối đa 3 lịch hẹn đang hoạt động'
+    );
+  }
+
+  // LẤY THÔNG TIN KHUNG GIỜ
+  const slot =
+    await appointmentModel.getSlotWithBookedCount(
+      MaKhungGio
+    );
+
+  if (slot.length === 0) {
+    throw new Error(
+      'Khung giờ không tồn tại'
+    );
+  }
+
+  // CHECK KHUNG GIỜ THUỘC BÁC SĨ
+  if (
+    slot[0].MaBacSi !==
+    Number(MaBacSi)
+  ) {
+    throw new Error(
+      'Khung giờ không thuộc bác sĩ này'
+    );
+  }
+
+  // CHECK SLOT ĐÃ ĐẦY
+  if (
+    slot[0].SoLuongDaDat >=
+    slot[0].SoLuongToiDa
+  ) {
+    throw new Error(
+      'Khung giờ này đã đầy'
+    );
+  }
+
+  // VALIDATE KHÔNG CHO ĐẶT LỊCH QUÁ KHỨ
+  const ngay =
+    slot[0].Ngay
+      .toISOString()
+      .slice(0, 10);
+
+  const gio =
+    slot[0].GioBatDau.toString();
+
+  const appointmentTime =
+    new Date(`${ngay}T${gio}`);
+
+  const now = new Date();
+
+  if (appointmentTime <= now) {
+    throw new Error(
+      'Không thể đặt lịch trong quá khứ'
+    );
+  }
+
+  // VALIDATE DỊCH VỤ
+  if (DichVu.length > 0) {
+    const serviceIds =
+      DichVu.map(
+        (item) => item.MaDichVu
+      );
+
+    const services =
+      await appointmentModel.getServicesByIds(
+        serviceIds
+      );
+
+    if (
+      services.length !==
+      serviceIds.length
+    ) {
+      throw new Error(
+        'Có dịch vụ không tồn tại'
+      );
     }
+  }
 
-    const created = await appointmentModel.createAppointment({ MaBenhNhan, MaBacSi, MaKhungGio, NgayHen });
-    const MaLichHen = created.insertId;
+  // TẠO LỊCH HẸN
+  const created =
+    await appointmentModel.createAppointment({
+      MaBenhNhan,
+      MaBacSi,
+      MaKhungGio,
+      NgayHen,
+    });
 
-    for (const item of DichVu) {
-      await appointmentModel.addAppointmentService(MaLichHen, item.MaDichVu, item.SoLuong);
-    }
+  const MaLichHen =
+    created.insertId;
 
-    return { message: 'Đặt lịch thành công', MaLichHen };
-  },
+  // THÊM DỊCH VỤ
+  for (const item of DichVu) {
+    await appointmentModel.addAppointmentService(
+      MaLichHen,
+      item.MaDichVu,
+      item.SoLuong
+    );
+  }
+
+  return {
+    message: 'Đặt lịch thành công',
+    MaLichHen,
+  };
+},
 
   async getAllAppointments(filter = {}) {
     return await appointmentModel.getAllAppointments(filter);

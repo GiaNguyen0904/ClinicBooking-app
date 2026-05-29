@@ -26,7 +26,7 @@ import { fetchDoctorAccounts } from "../../redux/clinicSlice";
 import TextField from "../common/TextField";
 import ActionButton from "../common/ActionButton";
 
-const SERVICE_API_URL = "http://10.106.39.177:5555/api/services";
+const SERVICE_API_URL = "http://10.106.39.171:5555/api/services";
 
 const BookingForm = ({ navigation }) => {
   const dispatch = useDispatch();

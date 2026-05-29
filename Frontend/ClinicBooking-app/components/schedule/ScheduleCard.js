@@ -1,4 +1,6 @@
-import React from "react";
+import React, {
+  useState,
+} from "react";
 
 import {
   View,
@@ -7,11 +9,29 @@ import {
   StyleSheet,
 } from "react-native";
 
+import {
+  useDispatch,
+} from "react-redux";
+
+import {
+  Alert,
+  Platform,
+} from "react-native";
+
+import {
+  deleteScheduleThunk,
+} from "../../redux/scheduleSlice";
+
+
 const ScheduleCard = ({
   item,
   onEdit,
-  onDelete,
 }) => {
+
+  const dispatch = useDispatch();
+
+const [deleting, setDeleting] =
+  useState(false);
 
  const formatTime = (time) => {
   if (!time) return "--:--";
@@ -44,6 +64,77 @@ const formatDate = (date) => {
 
   return `${day}/${month}/${year}`;
 };
+
+const handleDelete = () => {
+  if (deleting) return;
+
+  const confirmDelete = async () => {
+    try {
+      setDeleting(true);
+
+      await dispatch(
+        deleteScheduleThunk(
+          item.MaKhungGio
+        )
+      ).unwrap();
+
+      if (Platform.OS === "web") {
+        window.alert(
+          "Đã xóa khung giờ"
+        );
+      } else {
+        Alert.alert(
+          "Thành công",
+          "Đã xóa khung giờ"
+        );
+      }
+    } catch (error) {
+      const message =
+        error?.message ||
+        "Không thể xóa khung giờ";
+
+      if (Platform.OS === "web") {
+        window.alert(message);
+      } else {
+        Alert.alert(
+          "Lỗi",
+          message
+        );
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (Platform.OS === "web") {
+    const confirmed =
+      window.confirm(
+        "Bạn có chắc muốn xóa?"
+      );
+
+    if (confirmed) {
+      confirmDelete();
+    }
+
+    return;
+  }
+
+  Alert.alert(
+    "Xóa khung giờ",
+    "Bạn có chắc muốn xóa?",
+    [
+      {
+        text: "Hủy",
+        style: "cancel",
+      },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: confirmDelete,
+      },
+    ]
+  );
+};
   return (
     <View style={styles.card}>
       <Text style={styles.title}>
@@ -75,15 +166,19 @@ const formatDate = (date) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() =>
-            onDelete(item.MaKhungGio)
-          }
-        >
-          <Text style={styles.buttonText}>
-            Xóa
-          </Text>
-        </TouchableOpacity>
+  style={[
+    styles.deleteButton,
+    deleting && styles.disabledButton,
+  ]}
+  disabled={deleting}
+  onPress={handleDelete}
+>
+  <Text style={styles.buttonText}>
+    {deleting
+      ? "Đang xóa..."
+      : "Xóa"}
+  </Text>
+</TouchableOpacity>
       </View>
     </View>
   );

@@ -123,7 +123,7 @@ const AvailableScheduleList = () => {
             <Text>
               Bác sĩ:
               {" "}
-              {item.HoTen}
+              {item.MaBacSi}
             </Text>
 
             <Text>
