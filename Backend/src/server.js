@@ -357,6 +357,8 @@ app.get("/KhungGioDuocDatNhieuNhatGiamTheoKhungGio", (req, res) => {
     });
 });
 
+const dichVuRoute = require("./routes/dichvu.route");
+app.use("/dichvu", dichVuRoute);
 
 //server
 app.listen(5555, () => {
