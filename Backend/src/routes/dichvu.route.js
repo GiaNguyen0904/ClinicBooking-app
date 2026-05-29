@@ -1,20 +1,14 @@
 const express = require("express");
-
 const router = express.Router();
 
 const dichVuController = require("../controllers/dichvu.controller");
 
 router.get(
-    "/danhsach",
-    dichVuController.getAllDichVu
+    "/danhsach",dichVuController.getAllDichVu
 );
 
 
-// GET BY ID
-router.get(
-    "/danhsach/:id",
-    dichVuController.getDichVuById
-);
+router.get("/search", dichVuController.searchDichVuByName);
 
 
 // CREATE

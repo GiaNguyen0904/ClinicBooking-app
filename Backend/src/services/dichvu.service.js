@@ -1,4 +1,6 @@
+const db = require("../config/db");
 const dichVuModel = require("../models/dichvu.model");
+
 
 const getAllDichVu = (callback) => {
 
@@ -6,12 +8,14 @@ const getAllDichVu = (callback) => {
 
 };
 
-const getDichVuById = (id, callback) => {
+const searchDichVuByName = (name, callback) => {
 
-    dichVuModel.getDichVuById(id, callback);
+    dichVuModel.searchDichVuByName(
+        name,
+        callback
+    );
 
 };
-
 const createDichVu = (data, callback) => {
 
     dichVuModel.createDichVu(data, callback);
@@ -37,7 +41,7 @@ const deleteDichVu = (id, callback) => {
 
 module.exports = {
     getAllDichVu,
-    getDichVuById,
+    searchDichVuByName,
     createDichVu,
     updateDichVu,
     deleteDichVu

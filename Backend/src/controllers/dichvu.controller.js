@@ -1,4 +1,5 @@
 const dichVuService = require("../services/dichvu.service");
+const db = require("../config/db");
 
 const getAllDichVu = (req, res) => {
 
@@ -20,12 +21,12 @@ const getAllDichVu = (req, res) => {
 
 };
 
-const getDichVuById = (req, res) => {
+const searchDichVuByName = (req, res) => {
 
-    const { id } = req.params;
+    const { name } = req.query;
 
-    dichVuService.getDichVuById(
-        id,
+    dichVuService.searchDichVuByName(
+        name,
         (err, result) => {
 
             if (err) {
@@ -44,7 +45,7 @@ const getDichVuById = (req, res) => {
 
             }
 
-            res.json(result[0]);
+            res.json(result);
 
         }
     );
@@ -101,10 +102,6 @@ const updateDichVu = (req, res) => {
 };
 
 
-// ===============================
-// DELETE
-// ===============================
-
 const deleteDichVu = (req, res) => {
 
     const { id } = req.params;
@@ -133,7 +130,7 @@ const deleteDichVu = (req, res) => {
 
 module.exports = {
     getAllDichVu,
-    getDichVuById,
+    searchDichVuByName,
     createDichVu,
     updateDichVu,
     deleteDichVu

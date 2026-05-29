@@ -1,4 +1,4 @@
-const con = require("../config/db");
+const db = require("../config/db");
 
 const getAllDichVu = (callback) => {
 
@@ -19,34 +19,19 @@ const getAllDichVu = (callback) => {
         ON dv.MaBacSi = bs.MaBacSi
     `;
 
-    con.query(sql, callback);
+    db.query(sql, callback);
 
 };
 
-const getDichVuById = (id, callback) => {
+const searchDichVuByName = (name, callback) => {
 
     const sql = `
-        SELECT 
-            dv.MaDichVu,
-            dv.TenDichVu,
-            dv.Gia,
-            dv.MoTa,
-
-            bs.MaBacSi,
-            bs.HoTen,
-            bs.Email,
-            bs.SoDienThoai,
-            bs.ChuyenKhoa
-
-        FROM DichVu dv
-
-        LEFT JOIN BacSi bs
-        ON dv.MaBacSi = bs.MaBacSi
-
-        WHERE dv.MaDichVu = ?
+        SELECT *
+        FROM DichVu
+        WHERE TenDichVu LIKE ?
     `;
 
-    con.query(sql, [id], callback);
+    db.query(sql, [`%${name}%`], callback);
 
 };
 
@@ -69,7 +54,7 @@ const createDichVu = (data, callback) => {
         VALUES (?, ?, ?, ?)
     `;
 
-    con.query(
+    db.query(
         sql,
         [
             TenDichVu,
@@ -101,7 +86,7 @@ const updateDichVu = (id, data, callback) => {
         WHERE MaDichVu = ?
     `;
 
-    con.query(
+    db.query(
         sql,
         [
             TenDichVu,
@@ -122,14 +107,14 @@ const deleteDichVu = (id, callback) => {
         WHERE MaDichVu = ?
     `;
 
-    con.query(sql, [id], callback);
+    db.query(sql, [id], callback);
 
 };
 
 
 module.exports = {
     getAllDichVu,
-    getDichVuById,
+    searchDichVuByName,
     createDichVu,
     updateDichVu,
     deleteDichVu
