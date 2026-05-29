@@ -96,93 +96,35 @@ const initialState = {
   error: null,
 };
 
+
 const scheduleSlice = createSlice({
   name: "schedule",
-
   initialState,
-
   reducers: {},
 
   extraReducers: (builder) => {
     builder
 
-      // fetch schedules
-      .addCase(
-        fetchSchedules.pending,
-        (state) => {
-          state.loading = true;
-        }
-      )
+      // FETCH
+      .addCase(fetchSchedules.fulfilled, (state, action) => {
+        state.loading = false;
+        state.schedules = Array.isArray(action.payload?.data)
+          ? action.payload.data
+          : [];
+      })
 
-      .addCase(
-        fetchSchedules.fulfilled,
-        (state, action) => {
-          state.loading = false;
+      // AVAILABLE
+      .addCase(fetchAvailableSchedules.fulfilled, (state, action) => {
+        state.availableSchedules = Array.isArray(action.payload?.data)
+          ? action.payload.data
+          : [];
+      })
 
-          state.schedules =
-            action.payload.data;
-        }
-      )
-
-      .addCase(
-        fetchSchedules.rejected,
-        (state, action) => {
-          state.loading = false;
-
-          state.error = action.payload;
-        }
-      )
-
-      // available schedules
-      .addCase(
-        fetchAvailableSchedules.fulfilled,
-        (state, action) => {
-          state.availableSchedules =
-            action.payload.data;
-        }
-      )
-
-      // create
-      .addCase(
-        createScheduleThunk.fulfilled,
-        (state, action) => {
-          state.schedules.push(
-            action.payload.data
-          );
-        }
-      )
-
-      // update
-      .addCase(
-        updateScheduleThunk.fulfilled,
-        (state, action) => {
-          const index =
-            state.schedules.findIndex(
-              (item) =>
-                item.MaKhungGio ===
-                action.payload.data
-                  .MaKhungGio
-            );
-
-          if (index !== -1) {
-            state.schedules[index] =
-              action.payload.data;
-          }
-        }
-      )
-
-      // delete
-      .addCase(
-        deleteScheduleThunk.fulfilled,
-        (state, action) => {
-          state.schedules =
-            state.schedules.filter(
-              (item) =>
-                item.MaKhungGio !==
-                action.payload
-            );
-        }
-      );
+      // ERROR SAFE
+      .addCase(fetchSchedules.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Error";
+      });
   },
 });
 

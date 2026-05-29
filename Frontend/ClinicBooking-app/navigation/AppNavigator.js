@@ -4,9 +4,9 @@ import {
   createNativeStackNavigator,
 } from "@react-navigation/native-stack";
 
-import ScheduleManagementScreen from "../screens/ScheduleManagementScreen";
+import ScheduleManagementScreen from "../screens/schedule/ScheduleManagementScreen";
 
-import AvailableScheduleScreen from "../screens/AvailableScheduleScreen";
+import AvailableScheduleScreen from "../screens/schedule/AvailableScheduleScreen";
 
 const Stack =
   createNativeStackNavigator();

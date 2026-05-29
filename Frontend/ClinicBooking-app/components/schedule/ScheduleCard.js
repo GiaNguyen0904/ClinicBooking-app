@@ -12,16 +12,46 @@ const ScheduleCard = ({
   onEdit,
   onDelete,
 }) => {
+
+ const formatTime = (time) => {
+  if (!time) return "--:--";
+
+  // Trường hợp "08:00:00"
+  if (typeof time === "string" && time.includes(":")) {
+    return time.slice(0, 5);
+  }
+
+  // Trường hợp ISO Date
+  const date = new Date(time);
+  if (isNaN(date.getTime())) return "--:--";
+
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${hours}:${minutes}`;
+};
+
+const formatDate = (date) => {
+  if (!date) return "";
+
+  const d = new Date(date);
+
+  if (isNaN(d.getTime())) return date; // fallback nếu backend gửi string lạ
+
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+
+  return `${day}/${month}/${year}`;
+};
   return (
     <View style={styles.card}>
       <Text style={styles.title}>
-        Ngày: {item.Ngay}
+        Ngày: {formatDate(item.Ngay)}
       </Text>
 
       <Text>
-        Giờ:
-        {item.GioBatDau} -{" "}
-        {item.GioKetThuc}
+          Giờ: {formatTime(item.GioBatDau)} - {formatTime(item.GioKetThuc)}
       </Text>
 
       <Text>

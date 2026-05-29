@@ -5,7 +5,7 @@ import {
   Button,
 } from "react-native";
 
-import ScheduleList from "../components/ScheduleList";
+import ScheduleList from "../../components/schedule/ScheduleList";
 
 const ScheduleManagementScreen = ({
   navigation,

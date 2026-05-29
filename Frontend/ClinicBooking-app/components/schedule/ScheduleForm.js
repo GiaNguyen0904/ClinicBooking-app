@@ -7,7 +7,7 @@ import {
   createScheduleThunk,
   updateScheduleThunk,
   fetchSchedules,
-} from "../redux/scheduleSlice";
+} from "../../redux/scheduleSlice";
 
 import {
   View,
@@ -22,6 +22,29 @@ const ScheduleForm = ({
   initialData,
   onClose,
 }) => {
+
+  const normalizeDate = (value) => {
+  if (!value) return "";
+
+  const d = new Date(value);
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+  const formatDate = (value) => {
+  if (!value) return "";
+
+  // case ISO string
+  if (value.includes("T")) {
+    return value.split("T")[0];
+  }
+
+  return value;
+};
 
   const dispatch = useDispatch();
   const [doctorId, setDoctorId] =
@@ -39,35 +62,22 @@ const ScheduleForm = ({
   const [maxSlot, setMaxSlot] =
     useState("");
 
-  useEffect(() => {
-    if (
-      mode === "update" &&
-      initialData
-    ) {
-      setDoctorId(
-        initialData.MaBacSi.toString()
-      );
+useEffect(() => {
+  if (mode === "update" && initialData) {
+    setDoctorId(initialData.MaBacSi?.toString() || "");
 
-      setDate(initialData.Ngay);
+    setDate(normalizeDate(initialData.Ngay)); // 🔥 FIX CHÍNH
 
-      setStartTime(
-        initialData.GioBatDau
-      );
-
-      setEndTime(
-        initialData.GioKetThuc
-      );
-
-      setMaxSlot(
-        initialData.SoLuongToiDa.toString()
-      );
-    }
-  }, []);
+    setStartTime(initialData.GioBatDau || "");
+    setEndTime(initialData.GioKetThuc || "");
+    setMaxSlot(initialData.SoLuongToiDa?.toString() || "");
+  }
+}, [mode, initialData]);
 
   const handleSubmit = async () => {
   const payload = {
     MaBacSi: Number(doctorId),
-    Ngay: date,
+    Ngay: normalizeDate(date),
     GioBatDau: startTime,
     GioKetThuc: endTime,
     SoLuongToiDa: Number(maxSlot),
@@ -75,23 +85,20 @@ const ScheduleForm = ({
 
   try {
     if (mode === "create") {
-      await dispatch(
-        createScheduleThunk(payload)
-      );
+      await dispatch(createScheduleThunk(payload)).unwrap();
     } else {
-      await dispatch(
-        updateScheduleThunk({
-          id: initialData.MaKhungGio,
-          data: payload,
-        })
-      );
+      await dispatch(updateScheduleThunk({
+        id: initialData.MaKhungGio,
+        data: payload,
+      })).unwrap();
     }
 
+    //  ALWAYS REFRESH FROM SERVER
     dispatch(fetchSchedules());
 
     onClose();
-  } catch (error) {
-    console.log(error);
+  } catch (err) {
+    console.log("ERROR:", err);
   }
 };
 

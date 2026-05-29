@@ -13,7 +13,7 @@ import {
 import {
   fetchSchedules,
   deleteScheduleThunk,
-} from "../redux/scheduleSlice";
+} from "../../redux/scheduleSlice";
 
 import ScheduleCard from "./ScheduleCard";
 import ScheduleForm from "./ScheduleForm";
@@ -33,8 +33,8 @@ const ScheduleList = () => {
     );
 
     useEffect(() => {
-    dispatch(fetchSchedules());
-    }, []);
+  dispatch(fetchSchedules());
+}, [dispatch]);
   const [modalVisible, setModalVisible] =
     useState(false);
 
@@ -108,18 +108,22 @@ if (error) {
       </TouchableOpacity>
 
       <FlatList
-        data={schedules}
-        keyExtractor={(item) =>
-          item.MaKhungGio.toString()
-        }
-        renderItem={({ item }) => (
-          <ScheduleCard
-            item={item}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-        )}
+  data={Array.isArray(schedules) ? schedules : []}
+  keyExtractor={(item, index) =>
+    item?.MaKhungGio?.toString?.() ?? index.toString()
+  }
+  renderItem={({ item }) => {
+    if (!item) return null;
+
+    return (
+      <ScheduleCard
+        item={item}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
+    );
+  }}
+/>
 
       <Modal
         visible={modalVisible}

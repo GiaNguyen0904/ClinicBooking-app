@@ -21,7 +21,7 @@ import {
 
 import {
   fetchAvailableSchedules,
-} from "../redux/scheduleSlice";
+} from "../../redux/scheduleSlice";
 
 const AvailableScheduleList = () => {
 
@@ -50,6 +50,20 @@ const AvailableScheduleList = () => {
     );
 
   }, [selectedDate]);
+
+  const formatDate = (date) => {
+  if (!date) return "";
+
+  const d = new Date(date);
+
+  if (isNaN(d.getTime())) return date; // fallback nếu backend gửi string lạ
+
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+
+  return `${day}/${month}/${year}`;
+};
 
   return (
     <View style={styles.container}>
@@ -98,7 +112,7 @@ const AvailableScheduleList = () => {
           <View style={styles.card}>
 
             <Text style={styles.date}>
-              {item.Ngay}
+              Ngày: {formatDate(item.Ngay)}
             </Text>
 
             <Text>
