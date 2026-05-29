@@ -11,7 +11,7 @@ const createSchedule = async (
     SoLuongToiDa,
   } = data;
 
-  const [result] = await pool.query(
+  const [result] = await pool.promise().query(
     `INSERT INTO KhungGio (
         MaBacSi,
         Ngay,
@@ -44,7 +44,7 @@ const updateSchedule = async (
     SoLuongToiDa,
   } = data;
 
-  const [result] = await pool.query(
+  const [result] = await pool.promise().query(
     `UPDATE KhungGio
      SET
         MaBacSi = ?,
@@ -69,7 +69,7 @@ const updateSchedule = async (
 const deleteSchedule = async (
   scheduleId
 ) => {
-  const [result] = await pool.query(
+  const [result] = await pool.promise().query(
     `DELETE FROM KhungGio
      WHERE MaKhungGio = ?`,
     [scheduleId]
@@ -80,7 +80,7 @@ const deleteSchedule = async (
 const findScheduleById = async (
   scheduleId
 ) => {
-  const [rows] = await pool.query(
+  const [rows] = await pool.promise().query(
     `SELECT *
      FROM KhungGio
      WHERE MaKhungGio = ?`,
@@ -91,7 +91,7 @@ const findScheduleById = async (
 };
 
 const getSchedules = async () => {
-  const [rows] = await pool.query(
+  const [rows] = await pool.promise().query(
     `SELECT *
      FROM KhungGio
      ORDER BY Ngay ASC, GioBatDau ASC`
@@ -128,7 +128,7 @@ const checkScheduleOverlap = async (
     params.push(excludeId);
   }
 
-  const [rows] = await pool.query(
+  const [rows] = await pool.promise().query(
     query,
     params
   );
@@ -139,7 +139,7 @@ const checkScheduleOverlap = async (
 const getAvailableSchedules = async (
   date
 ) => {
-  const [rows] = await pool.query(
+  const [rows] = await pool.promise().query(
     `SELECT
         kg.MaKhungGio,
         kg.MaBacSi,
