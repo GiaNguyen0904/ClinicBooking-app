@@ -1,17 +1,21 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
+const appointmentController = require("../controllers/appointment.controller");
+const { authenticate, authorize } = require("../middlewares/auth.middleware");
 
-const appointmentController = require('../controllers/appointment.controller');
+// Public: xem slot trống
+router.get("/slots/available", appointmentController.getAvailableSlots);
 
-router.get('/slots/available', appointmentController.getAvailableSlots);
-router.get('/patient/:MaBenhNhan', appointmentController.getAppointmentsByPatient);
+// Yêu cầu đăng nhập
+router.use(authenticate);
 
-router.get('/', appointmentController.getAllAppointments);
-router.get('/:id', appointmentController.getAppointmentById);
+router.post("/", authorize("Khách hàng", "ADMIN"), appointmentController.createAppointment);
+router.get("/patient/:MaBenhNhan", appointmentController.getAppointmentsByPatient);
+router.get("/", authorize("ADMIN", "Bác sĩ"), appointmentController.getAllAppointments);
+router.get("/:id", appointmentController.getAppointmentById);
 
-router.post('/', appointmentController.createAppointment);
-
-router.patch('/:id/status', appointmentController.updateAppointmentStatus);
-router.patch('/:id/cancel', appointmentController.cancelAppointment);
+router.patch("/:id/status", authorize("ADMIN", "Bác sĩ"), appointmentController.updateAppointmentStatus);
+router.patch("/:id/cancel", appointmentController.cancelAppointment);
+router.patch("/:id/reschedule", authorize("Khách hàng", "ADMIN"), appointmentController.rescheduleAppointment);
 
 module.exports = router;

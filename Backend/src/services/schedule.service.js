@@ -1,160 +1,96 @@
 const doctorModel = require("../models/doctor.service.model");
 const scheduleModel = require("../models/schedule.model");
-const appointmentModel= require("../models/appointment.service.model");
+const appointmentModel = require("../models/appointment.service.model");
+
+// Bác sĩ chỉ có thể cập nhật lịch trước ít nhất 4 ngày (không được cập nhật lịch cũ trước 2 ngày)
+const MIN_DAYS_BEFORE_UPDATE = 4;
 
 const createSchedule = async (data) => {
-  const {
-    MaBacSi,
-    Ngay,
-    GioBatDau,
-    GioKetThuc,
-    SoLuongToiDa,
-  } = data;
+  const { MaBacSi, Ngay, GioBatDau, GioKetThuc, SoLuongToiDa } = data;
 
-  const doctor = await doctorModel.findDoctorById(
-    MaBacSi
-  );
+  const doctor = await doctorModel.findDoctorById(MaBacSi);
+  if (!doctor) throw new Error("Bác sĩ không tồn tại");
 
-  if (!doctor) {
-    throw new Error("Bác sĩ không tồn tại");
+  if (GioBatDau >= GioKetThuc) throw new Error("Giờ bắt đầu phải nhỏ hơn giờ kết thúc");
+
+  // Kiểm tra lịch phải ít nhất 4 ngày từ hôm nay
+  const scheduleDate = new Date(Ngay);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = (scheduleDate - today) / (1000 * 60 * 60 * 24);
+  if (diffDays < MIN_DAYS_BEFORE_UPDATE) {
+    throw new Error(`Lịch làm việc phải được tạo trước ít nhất ${MIN_DAYS_BEFORE_UPDATE} ngày`);
   }
 
-  if (GioBatDau >= GioKetThuc) {
-    throw new Error(
-      "Giờ bắt đầu phải nhỏ hơn giờ kết thúc"
-    );
-  }
+  const overlapSchedules = await scheduleModel.checkScheduleOverlap(MaBacSi, Ngay, GioBatDau, GioKetThuc);
+  if (overlapSchedules.length > 0) throw new Error("Bác sĩ đã có lịch trong thời gian này");
 
-  const overlapSchedules =
-    await scheduleModel.checkScheduleOverlap(
-      MaBacSi,
-      Ngay,
-      GioBatDau,
-      GioKetThuc
-    );
-
-  if (overlapSchedules.length > 0) {
-    throw new Error(
-      "Bác sĩ đã có lịch trong thời gian này"
-    );
-  }
-
-  return await scheduleModel.createSchedule({
-    MaBacSi,
-    Ngay,
-    GioBatDau,
-    GioKetThuc,
-    SoLuongToiDa,
-  });
+  return await scheduleModel.createSchedule({ MaBacSi, Ngay, GioBatDau, GioKetThuc, SoLuongToiDa });
 };
 
-const updateSchedule = async (
-  scheduleId,
-  data
-) => {
-  const oldSchedule =
-    await scheduleModel.findScheduleById(
-      scheduleId
-    );
+const updateSchedule = async (scheduleId, data, doctorId = null) => {
+  const oldSchedule = await scheduleModel.findScheduleById(scheduleId);
+  if (!oldSchedule) throw new Error("Khung giờ không tồn tại");
 
-  if (!oldSchedule) {
-    throw new Error("Khung giờ không tồn tại");
+  // Nếu bác sĩ gọi, chỉ được sửa lịch của mình
+  if (doctorId && oldSchedule.MaBacSi !== doctorId) {
+    throw new Error("Bạn không có quyền chỉnh sửa khung giờ này");
   }
 
-  const totalAppointments =
-    await appointmentModel.countAppointmentsBySchedule(
-      scheduleId
-    );
-
-  if (totalAppointments > 0) {
-    throw new Error(
-      "Khung giờ đã có lịch hẹn"
-    );
+  // Kiểm tra thời gian tối thiểu
+  const scheduleDate = new Date(oldSchedule.Ngay);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = (scheduleDate - today) / (1000 * 60 * 60 * 24);
+  if (diffDays < MIN_DAYS_BEFORE_UPDATE) {
+    throw new Error(`Chỉ có thể cập nhật lịch trước ít nhất ${MIN_DAYS_BEFORE_UPDATE} ngày`);
   }
 
-  const overlapSchedules =
-    await scheduleModel.checkScheduleOverlap(
-      data.MaBacSi,
-      data.Ngay,
-      data.GioBatDau,
-      data.GioKetThuc,
-      scheduleId
-    );
+  const totalAppointments = await appointmentModel.countAppointmentsBySchedule(scheduleId);
+  if (totalAppointments > 0) throw new Error("Khung giờ đã có lịch hẹn, không thể sửa");
 
-  if (overlapSchedules.length > 0) {
-    throw new Error(
-      "Bác sĩ đã có lịch trong thời gian này"
-    );
-  }
-
-  return await scheduleModel.updateSchedule(
-    scheduleId,
-    data
-  );
-};
-const deleteSchedule = async (
-  scheduleId
-) => {
-  const schedule =
-    await scheduleModel.findScheduleById(
-      scheduleId
-    );
-
-  if (!schedule) {
-    throw new Error("Khung giờ không tồn tại");
-  }
-
-  const totalAppointments =
-    await appointmentModel.countAppointmentsBySchedule(
-      scheduleId
-    );
-
-  if (totalAppointments > 0) {
-    throw new Error(
-      "Không thể xóa khung giờ đã có lịch hẹn"
-    );
-  }
-
-  return await scheduleModel.deleteSchedule(
+  const overlapSchedules = await scheduleModel.checkScheduleOverlap(
+    data.MaBacSi || oldSchedule.MaBacSi,
+    data.Ngay || oldSchedule.Ngay,
+    data.GioBatDau || oldSchedule.GioBatDau,
+    data.GioKetThuc || oldSchedule.GioKetThuc,
     scheduleId
   );
+  if (overlapSchedules.length > 0) throw new Error("Bác sĩ đã có lịch trong thời gian này");
+
+  return await scheduleModel.updateSchedule(scheduleId, { ...oldSchedule, ...data });
 };
 
-const getSchedules = async () => {
-  return await scheduleModel.getSchedules();
+const deleteSchedule = async (scheduleId) => {
+  const schedule = await scheduleModel.findScheduleById(scheduleId);
+  if (!schedule) throw new Error("Khung giờ không tồn tại");
+
+  const totalAppointments = await appointmentModel.countAppointmentsBySchedule(scheduleId);
+  if (totalAppointments > 0) throw new Error("Không thể xóa khung giờ đã có lịch hẹn");
+
+  return await scheduleModel.deleteSchedule(scheduleId);
 };
 
-const getAvailableSchedules = async (
-  date
-) => {
-  return await scheduleModel.getAvailableSchedules(
-    date
-  );
+const getSchedules = async (filter = {}) => {
+  return await scheduleModel.getSchedules(filter);
 };
-const checkScheduleAvailable = async (
-  scheduleId
-) => {
-  const schedule =
-    await scheduleModel.findScheduleById(
-      scheduleId
-    );
 
-  if (!schedule) {
-    throw new Error("Khung giờ không tồn tại");
-  }
+const getAvailableSchedules = async (date) => {
+  return await scheduleModel.getAvailableSchedules(date);
+};
 
-  const totalAppointments =
-    await appointmentModel.countAppointmentsBySchedule(
-      scheduleId
-    );
+const getSchedulesByDoctor = async (MaBacSi) => {
+  return await scheduleModel.getSchedulesByDoctor(MaBacSi);
+};
 
-  const remaining =
-    schedule.SoLuongToiDa - totalAppointments;
+const checkScheduleAvailable = async (scheduleId) => {
+  const schedule = await scheduleModel.findScheduleById(scheduleId);
+  if (!schedule) throw new Error("Khung giờ không tồn tại");
 
-  return {
-    available: remaining > 0,
-    remaining,
-  };
+  const totalAppointments = await appointmentModel.countAppointmentsBySchedule(scheduleId);
+  const remaining = schedule.SoLuongToiDa - totalAppointments;
+
+  return { available: remaining > 0, remaining, schedule };
 };
 
 module.exports = {
@@ -163,5 +99,6 @@ module.exports = {
   deleteSchedule,
   getSchedules,
   getAvailableSchedules,
+  getSchedulesByDoctor,
   checkScheduleAvailable,
 };

@@ -1,17 +1,10 @@
-const con = require('../config/db');
+const db = require("../config/db");
 
-const query = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    con.query(sql, params, (err, result) => {
-      if (err) reject(err);
-      else resolve(result);
-    });
-  });
-};
+const query = (sql, params = []) => db.query(sql, params).then(([rows]) => rows);
 
 const appointmentModel = {
   getAvailableSlots(MaBacSi, Ngay) {
-    const sql = `
+    return query(`
       SELECT kg.MaKhungGio, kg.MaBacSi, bs.HoTen AS TenBacSi,
              kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa,
              COUNT(lh.MaLichHen) AS SoLuongDaDat,
@@ -23,9 +16,7 @@ const appointmentModel = {
       GROUP BY kg.MaKhungGio, kg.MaBacSi, bs.HoTen, kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa
       HAVING SoLuongConLai > 0
       ORDER BY kg.GioBatDau ASC
-    `;
-
-    return query(sql, [MaBacSi, Ngay]);
+    `, [MaBacSi, Ngay]);
   },
 
   getPatientById(MaBenhNhan) {
@@ -36,6 +27,16 @@ const appointmentModel = {
     return query(`SELECT MaBacSi FROM BacSi WHERE MaBacSi = ?`, [MaBacSi]);
   },
 
+  getPatientEmail(MaBenhNhan) {
+    return db.query(
+      `SELECT tk.TenDangNhap, bn.HoTen
+       FROM BenhNhan bn
+       JOIN TaiKhoan tk ON bn.MaTaiKhoan = tk.MaTaiKhoan
+       WHERE bn.MaBenhNhan = ?`,
+      [MaBenhNhan]
+    );
+  },
+
   countActiveAppointments(MaBenhNhan) {
     return query(
       `SELECT COUNT(*) AS total FROM LichHen WHERE MaBenhNhan = ? AND TrangThai IN ('Chờ xác nhận', 'Đã xác nhận')`,
@@ -44,16 +45,14 @@ const appointmentModel = {
   },
 
   getSlotWithBookedCount(MaKhungGio) {
-    const sql = `
+    return query(`
       SELECT kg.MaKhungGio, kg.MaBacSi, kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa,
              COUNT(lh.MaLichHen) AS SoLuongDaDat
       FROM KhungGio kg
       LEFT JOIN LichHen lh ON kg.MaKhungGio = lh.MaKhungGio AND lh.TrangThai <> 'Đã hủy'
       WHERE kg.MaKhungGio = ?
       GROUP BY kg.MaKhungGio, kg.MaBacSi, kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa
-    `;
-
-    return query(sql, [MaKhungGio]);
+    `, [MaKhungGio]);
   },
 
   getServicesByIds(serviceIds) {
@@ -61,23 +60,21 @@ const appointmentModel = {
   },
 
   createAppointment({ MaBenhNhan, MaBacSi, MaKhungGio, NgayHen }) {
-    return query(
+    return db.query(
       `INSERT INTO LichHen (MaBenhNhan, MaBacSi, MaKhungGio, NgayHen, TrangThai) VALUES (?, ?, ?, ?, 'Chờ xác nhận')`,
       [MaBenhNhan, MaBacSi, MaKhungGio, NgayHen]
-    );
+    ).then(([result]) => result);
   },
 
   addAppointmentService(MaLichHen, MaDichVu, SoLuong) {
-    return query(`INSERT INTO ChiTietDichVu (MaLichHen, MaDichVu, SoLuong) VALUES (?, ?, ?)`, [
-      MaLichHen,
-      MaDichVu,
-      SoLuong || 1
-    ]);
+    return db.query(
+      `INSERT INTO ChiTietDichVu (MaLichHen, MaDichVu, SoLuong) VALUES (?, ?, ?)`,
+      [MaLichHen, MaDichVu, SoLuong || 1]
+    );
   },
 
   getAllAppointments(filter = {}) {
-    const { Ngay, TrangThai, MaBacSi } = filter;
-
+    const { Ngay, TrangThai, MaBacSi, MaBenhNhan } = filter;
     let sql = `
       SELECT lh.MaLichHen, lh.NgayHen, lh.TrangThai,
              bn.MaBenhNhan, bn.HoTen AS TenBenhNhan, bn.SoDienThoai AS SDTBenhNhan,
@@ -89,30 +86,17 @@ const appointmentModel = {
       LEFT JOIN KhungGio kg ON lh.MaKhungGio = kg.MaKhungGio
       WHERE 1 = 1
     `;
-
     const params = [];
-
-    if (Ngay) {
-      sql += ` AND lh.NgayHen = ?`;
-      params.push(Ngay);
-    }
-
-    if (TrangThai) {
-      sql += ` AND lh.TrangThai = ?`;
-      params.push(TrangThai);
-    }
-
-    if (MaBacSi) {
-      sql += ` AND lh.MaBacSi = ?`;
-      params.push(MaBacSi);
-    }
-
+    if (Ngay) { sql += ` AND lh.NgayHen = ?`; params.push(Ngay); }
+    if (TrangThai) { sql += ` AND lh.TrangThai = ?`; params.push(TrangThai); }
+    if (MaBacSi) { sql += ` AND lh.MaBacSi = ?`; params.push(MaBacSi); }
+    if (MaBenhNhan) { sql += ` AND lh.MaBenhNhan = ?`; params.push(MaBenhNhan); }
     sql += ` ORDER BY lh.NgayHen DESC, kg.GioBatDau DESC`;
     return query(sql, params);
   },
 
   getAppointmentById(MaLichHen) {
-    const sql = `
+    return db.query(`
       SELECT lh.MaLichHen, lh.NgayHen, lh.TrangThai,
              bn.MaBenhNhan, bn.HoTen AS TenBenhNhan, bn.NgaySinh, bn.GioiTinh, bn.SoDienThoai AS SDTBenhNhan, bn.DiaChi,
              bs.MaBacSi, bs.HoTen AS TenBacSi, bs.SoDienThoai AS SDTBacSi, bs.Email, bs.ChuyenKhoa,
@@ -122,9 +106,7 @@ const appointmentModel = {
       JOIN BacSi bs ON lh.MaBacSi = bs.MaBacSi
       LEFT JOIN KhungGio kg ON lh.MaKhungGio = kg.MaKhungGio
       WHERE lh.MaLichHen = ?
-    `;
-
-    return query(sql, [MaLichHen]);
+    `, [MaLichHen]);
   },
 
   getAppointmentServices(MaLichHen) {
@@ -138,7 +120,7 @@ const appointmentModel = {
   },
 
   getAppointmentsByPatient(MaBenhNhan) {
-    const sql = `
+    return query(`
       SELECT lh.MaLichHen, lh.NgayHen, lh.TrangThai,
              bs.HoTen AS TenBacSi, bs.ChuyenKhoa,
              kg.GioBatDau, kg.GioKetThuc
@@ -147,33 +129,36 @@ const appointmentModel = {
       LEFT JOIN KhungGio kg ON lh.MaKhungGio = kg.MaKhungGio
       WHERE lh.MaBenhNhan = ?
       ORDER BY lh.NgayHen DESC, kg.GioBatDau DESC
-    `;
-
-    return query(sql, [MaBenhNhan]);
+    `, [MaBenhNhan]);
   },
 
   getAppointmentStatusById(MaLichHen) {
-    return query(`SELECT MaLichHen FROM LichHen WHERE MaLichHen = ?`, [MaLichHen]);
+    return query(`SELECT MaLichHen, TrangThai FROM LichHen WHERE MaLichHen = ?`, [MaLichHen]);
   },
 
   updateAppointmentStatus(MaLichHen, TrangThai) {
-    return query(`UPDATE LichHen SET TrangThai = ? WHERE MaLichHen = ?`, [TrangThai, MaLichHen]);
+    return db.query(`UPDATE LichHen SET TrangThai = ? WHERE MaLichHen = ?`, [TrangThai, MaLichHen]);
   },
 
   getAppointmentForCancel(MaLichHen) {
-    const sql = `
-      SELECT lh.MaLichHen, lh.TrangThai, kg.Ngay, kg.GioBatDau
+    return db.query(`
+      SELECT lh.MaLichHen, lh.TrangThai, lh.MaBenhNhan, kg.Ngay, kg.GioBatDau
       FROM LichHen lh
       LEFT JOIN KhungGio kg ON lh.MaKhungGio = kg.MaKhungGio
       WHERE lh.MaLichHen = ?
-    `;
-
-    return query(sql, [MaLichHen]);
+    `, [MaLichHen]).then(([rows]) => rows);
   },
 
   cancelAppointment(MaLichHen) {
-    return query(`UPDATE LichHen SET TrangThai = 'Đã hủy' WHERE MaLichHen = ?`, [MaLichHen]);
-  }
+    return db.query(`UPDATE LichHen SET TrangThai = 'Đã hủy' WHERE MaLichHen = ?`, [MaLichHen]);
+  },
+
+  rescheduleAppointment(MaLichHen, MaKhungGioMoi, NgayHenMoi) {
+    return db.query(
+      `UPDATE LichHen SET MaKhungGio = ?, NgayHen = ?, TrangThai = 'Chờ xác nhận' WHERE MaLichHen = ?`,
+      [MaKhungGioMoi, NgayHenMoi, MaLichHen]
+    );
+  },
 };
 
 module.exports = appointmentModel;

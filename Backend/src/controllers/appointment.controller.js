@@ -1,11 +1,10 @@
-const appointmentService = require('../services/appointment.service');
+const appointmentService = require("../services/appointment.service");
 
 const appointmentController = {
   async getAvailableSlots(req, res) {
     try {
       const { MaBacSi, Ngay } = req.query;
-      if (!MaBacSi || !Ngay) return res.status(400).json({ error: 'Thiếu MaBacSi hoặc Ngay' });
-
+      if (!MaBacSi || !Ngay) return res.status(400).json({ error: "Thiếu MaBacSi hoặc Ngay" });
       const result = await appointmentService.getAvailableSlots(MaBacSi, Ngay);
       res.json(result);
     } catch (err) {
@@ -15,8 +14,13 @@ const appointmentController = {
 
   async createAppointment(req, res) {
     try {
-      const result = await appointmentService.createAppointment(req.body);
-      res.json(result);
+      // Nếu bệnh nhân tự đặt, gắn MaBenhNhan từ token
+      const data = { ...req.body };
+      if (req.user.VaiTro === "Khách hàng" && req.user.MaHoSo) {
+        data.MaBenhNhan = req.user.MaHoSo;
+      }
+      const result = await appointmentService.createAppointment(data);
+      res.status(201).json(result);
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
@@ -42,7 +46,12 @@ const appointmentController = {
 
   async getAppointmentsByPatient(req, res) {
     try {
-      const result = await appointmentService.getAppointmentsByPatient(req.params.MaBenhNhan);
+      const MaBenhNhan = req.params.MaBenhNhan;
+      // Bệnh nhân chỉ xem lịch của mình
+      if (req.user.VaiTro === "Khách hàng" && req.user.MaHoSo !== parseInt(MaBenhNhan)) {
+        return res.status(403).json({ error: "Không có quyền truy cập" });
+      }
+      const result = await appointmentService.getAppointmentsByPatient(MaBenhNhan);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -60,12 +69,30 @@ const appointmentController = {
 
   async cancelAppointment(req, res) {
     try {
-      const result = await appointmentService.cancelAppointment(req.params.id);
+      const result = await appointmentService.cancelAppointment(
+        req.params.id,
+        req.user.MaHoSo,
+        req.user.VaiTro
+      );
       res.json(result);
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
-  }
+  },
+
+  async rescheduleAppointment(req, res) {
+    try {
+      const result = await appointmentService.rescheduleAppointment(
+        req.params.id,
+        req.body,
+        req.user.MaHoSo,
+        req.user.VaiTro
+      );
+      res.json(result);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
 };
 
 module.exports = appointmentController;

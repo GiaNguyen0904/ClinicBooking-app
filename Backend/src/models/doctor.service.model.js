@@ -1,16 +1,8 @@
-const pool = require("../config/db");
+const db = require("../config/db");
 
 const findDoctorById = async (doctorId) => {
-  const [rows] = await pool.query(
-    `SELECT *
-     FROM BacSi
-     WHERE MaBacSi = ?`,
-    [doctorId]
-  );
-
+  const [rows] = await db.query(`SELECT * FROM BacSi WHERE MaBacSi = ?`, [doctorId]);
   return rows[0];
 };
 
-module.exports = {
-  findDoctorById,
-};
+module.exports = { findDoctorById };
