@@ -265,13 +265,23 @@ INSERT INTO ChiTietDichVu (MaLichHen, MaDichVu, SoLuong) VALUES
 (4, 3, 1), -- 				Chụp X-quang
 (4, 4, 1); -- 				Siêu âm bụng
 
+-- test
 SELECT * FROM BacSi;
 SELECT * FROM KhungGio;
 SELECT * FROM DichVu;
 SELECT * FROM LichHen;
 SELECT * FROM ChiTietDichVu;
+select * from PhongKham;
+select * from TaiKhoan;
+select * from BenhNhan;
 
--- Phúc test
-select * from LichHen where MaBenhNhan = 2;
-select * from LichHen order by MaLichHen desc;
-select MaLichHen, TrangThai from LichHen where MaLichHen = 9;
+SELECT kg.MaKhungGio, kg.MaBacSi, kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa,
+    COUNT(lh.MaLichHen) AS SoLuongDaDat,
+    kg.SoLuongToiDa - COUNT(lh.MaLichHen) AS SoLuongConLai
+FROM KhungGio kg
+LEFT JOIN LichHen lh
+    ON kg.MaKhungGio = lh.MaKhungGio
+    AND lh.TrangThai IN ('Chờ xác nhận', 'Đã xác nhận', 'Đang thực hiện')
+WHERE kg.Ngay = '2026-06-30' 		-- search avaiable slot theo ngày
+GROUP BY kg.MaKhungGio, kg.MaBacSi, kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa
+ORDER BY kg.GioBatDau ASC;
