@@ -11,22 +11,19 @@ const query = (sql, params = []) => {
 
 const appointmentModel = {
   getAvailableSlots(MaBacSi, Ngay) {
-    const sql = `
-      SELECT kg.MaKhungGio, kg.MaBacSi, bs.HoTen AS TenBacSi,
-             kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa,
-             COUNT(lh.MaLichHen) AS SoLuongDaDat,
-             kg.SoLuongToiDa - COUNT(lh.MaLichHen) AS SoLuongConLai
-      FROM KhungGio kg
-      JOIN BacSi bs ON kg.MaBacSi = bs.MaBacSi
-      LEFT JOIN LichHen lh ON kg.MaKhungGio = lh.MaKhungGio AND lh.TrangThai <> 'Đã hủy'
-      WHERE kg.MaBacSi = ? AND kg.Ngay = ?
-      GROUP BY kg.MaKhungGio, kg.MaBacSi, bs.HoTen, kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa
-      HAVING SoLuongConLai > 0
-      ORDER BY kg.GioBatDau ASC
-    `;
+  const sql = `
+    SELECT kg.MaKhungGio, kg.MaBacSi, bs.HoTen AS TenBacSi, kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa, COUNT(lh.MaLichHen) AS SoLuongDaDat, kg.SoLuongToiDa - COUNT(lh.MaLichHen) AS SoLuongConLai
+    FROM KhungGio kg
+    JOIN BacSi bs ON kg.MaBacSi = bs.MaBacSi
+    LEFT JOIN LichHen lh ON kg.MaKhungGio = lh.MaKhungGio AND lh.TrangThai IN ('Chờ xác nhận', 'Đã xác nhận', 'Đang thực hiện')
+    WHERE kg.MaBacSi = ? AND kg.Ngay = ?
+    GROUP BY kg.MaKhungGio, kg.MaBacSi, bs.HoTen, kg.Ngay, kg.GioBatDau, kg.GioKetThuc, kg.SoLuongToiDa
+    HAVING SoLuongConLai > 0
+    ORDER BY kg.GioBatDau ASC
+  `;
 
-    return query(sql, [MaBacSi, Ngay]);
-  },
+  return query(sql, [MaBacSi, Ngay]);
+},
 
   getPatientById(MaBenhNhan) {
     return query(`SELECT MaBenhNhan FROM BenhNhan WHERE MaBenhNhan = ?`, [MaBenhNhan]);

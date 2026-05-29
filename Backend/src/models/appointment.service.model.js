@@ -6,7 +6,7 @@ const countAppointmentsBySchedule = async (
   const [rows] = await pool.promise().query(
     `SELECT COUNT(*) AS total
      FROM LichHen
-     WHERE MaKhungGio = ?`,
+     WHERE MaKhungGio = ? AND TrangThai IN ('Chờ xác nhận', 'Đã xác nhận', 'Đang thực hiện')`,
     [scheduleId]
   );
 

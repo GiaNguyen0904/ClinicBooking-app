@@ -2,127 +2,516 @@ const app = require("./app");
 const con = require("./config/db");
 
 // =========================
+// Helper
+// =========================
+const isValidPhone = (phone) => /^[0-9]{10}$/.test(phone);
+const hasWhitespace = (value) => /\s/.test(value);
+
+// =========================
 // API ĐĂNG NHẬP
 // =========================
 app.post("/login", (req, res) => {
     const { TenDangNhap, MatKhau } = req.body;
 
-    // Kiểm tra tài khoản trong DB
+    if (!TenDangNhap || !MatKhau) {s
+        return res.status(400).json({
+            error: "TenDangNhap và MatKhau không được để trống"
+        });
+    }
+
     con.query(
         "SELECT MaTaiKhoan, VaiTro FROM TaiKhoan WHERE TenDangNhap = ? AND MatKhau = ?",
         [TenDangNhap, MatKhau],
         (err, result) => {
             if (err) {
-                res.status(500).json({ error: "Lỗi server", detail: err });
-            } else {
-                if (result.length > 0) {
-                    // Đăng nhập thành công
-                    res.json({ 
-                        MaTaiKhoan: result[0].MaTaiKhoan,
-                        VaiTro: result[0].VaiTro
-                    });
-                } else {
-                    // Sai tên đăng nhập hoặc mật khẩu
-                    res.json({ error: "Tên đăng nhập hoặc mật khẩu không đúng", TenDangNhap });
-                }
+                return res.status(500).json({
+                    error: "Lỗi server",
+                    detail: err
+                });
             }
+
+            if (result.length === 0) {
+                return res.status(401).json({
+                    error: "Tên đăng nhập hoặc mật khẩu không đúng"
+                });
+            }
+
+            res.json({
+                MaTaiKhoan: result[0].MaTaiKhoan,
+                VaiTro: result[0].VaiTro
+            });
         }
     );
 });
-//Test backend
-// {
-//     "TenDangNhap": "admin01@phongkham",
-//     "MatKhau": "adminpass"
-// }
 
 // =========================
 // API TẠO TÀI KHOẢN BÁC SĨ
 // =========================
 app.post("/register-bacsi", (req, res) => {
-    const { TenDangNhap, MatKhau, HoTen, SoDienThoai, Email, ChuyenKhoa, MaPhongKham } = req.body;
+    let {
+        TenDangNhap,
+        MatKhau,
+        HoTen,
+        SoDienThoai,
+        Email,
+        ChuyenKhoa,
+        MaPhongKham
+    } = req.body;
 
-    // Kiểm tra các trường bắt buộc
     if (!TenDangNhap || !MatKhau || !HoTen) {
-        return res.status(400).json({ error: "TenDangNhap, MatKhau, HoTen không được để trống" });
+        return res.status(400).json({
+            error: "TenDangNhap, MatKhau, HoTen không được để trống"
+        });
     }
 
-    // Ràng buộc TenDangNhap phải có @bacsi
     if (!TenDangNhap.endsWith("@bacsi")) {
-        return res.status(400).json({ error: "TenDangNhap phải có hậu tố @bacsi" });
+        return res.status(400).json({
+            error: "TenDangNhap phải có hậu tố @bacsi"
+        });
     }
 
-    // 1. Tạo tài khoản với vai trò mặc định là 'Bác sĩ'
+    if (hasWhitespace(TenDangNhap)) {
+        return res.status(400).json({
+            error: "TenDangNhap không được chứa khoảng trắng"
+        });
+    }
+
+    if (SoDienThoai) {
+        if (!isValidPhone(SoDienThoai)) {
+            return res.status(400).json({
+                error: "Số điện thoại phải gồm đúng 10 chữ số, không chứa chữ hoặc khoảng trắng"
+            });
+        }
+    } else {
+        SoDienThoai = null;
+    }
+
+    if (Email) {
+        Email = Email.toLowerCase().trim();
+
+        if (hasWhitespace(Email)) {
+            return res.status(400).json({
+                error: "Email không được chứa khoảng trắng"
+            });
+        }
+    } else {
+        Email = null;
+    }
+
     con.query(
-        "INSERT INTO TaiKhoan (TenDangNhap, MatKhau, VaiTro) VALUES (?, ?, 'Bác sĩ')",
-        [TenDangNhap, MatKhau],
-        (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: "Lỗi khi tạo tài khoản", detail: err });
+        "SELECT MaTaiKhoan FROM TaiKhoan WHERE TenDangNhap = ?",
+        [TenDangNhap],
+        (errCheck, rows) => {
+            if (errCheck) {
+                return res.status(500).json({
+                    error: "Lỗi khi kiểm tra tên đăng nhập",
+                    detail: errCheck
+                });
             }
 
-            const maTaiKhoan = result.insertId;
+            if (rows.length > 0) {
+                return res.status(400).json({
+                    error: "Tên đăng nhập đã tồn tại, vui lòng chọn tên khác"
+                });
+            }
 
-            // 2. Tạo bản ghi bác sĩ liên kết với tài khoản vừa tạo
-            con.query(
-                "INSERT INTO BacSi (HoTen, SoDienThoai, Email, ChuyenKhoa, MaPhongKham, MaTaiKhoan) VALUES (?, ?, ?, ?, ?, ?)",
-                [HoTen, SoDienThoai || null, Email || null, ChuyenKhoa || null, MaPhongKham || null, maTaiKhoan],
-                (err2, result2) => {
-                    if (err2) {
-                        return res.status(500).json({ error: "Lỗi khi tạo bác sĩ", detail: err2 });
+            if (MaPhongKham) {
+                con.query(
+                    "SELECT MaPhongKham FROM PhongKham WHERE MaPhongKham = ?",
+                    [MaPhongKham],
+                    (errPK, rowsPK) => {
+                        if (errPK) {
+                            return res.status(500).json({
+                                error: "Lỗi khi kiểm tra phòng khám",
+                                detail: errPK
+                            });
+                        }
+
+                        if (rowsPK.length === 0) {
+                            return res.status(400).json({
+                                error: "Phòng khám không tồn tại"
+                            });
+                        }
+
+                        createTaiKhoanVaBacSi();
                     }
-                    res.json({ message: "Tạo bác sĩ thành công", MaTaiKhoan: maTaiKhoan, MaBacSi: result2.insertId });
-                }
-            );
+                );
+            } else {
+                MaPhongKham = null;
+                createTaiKhoanVaBacSi();
+            }
+
+            function createTaiKhoanVaBacSi() {
+                con.query(
+                    "INSERT INTO TaiKhoan (TenDangNhap, MatKhau, VaiTro) VALUES (?, ?, 'Bác sĩ')",
+                    [TenDangNhap, MatKhau],
+                    (err, result) => {
+                        if (err) {
+                            return res.status(500).json({
+                                error: "Lỗi khi tạo tài khoản",
+                                detail: err
+                            });
+                        }
+
+                        const maTaiKhoan = result.insertId;
+
+                        con.query(
+                            `INSERT INTO BacSi 
+                            (HoTen, SoDienThoai, Email, ChuyenKhoa, MaPhongKham, MaTaiKhoan) 
+                            VALUES (?, ?, ?, ?, ?, ?)`,
+                            [
+                                HoTen,
+                                SoDienThoai,
+                                Email,
+                                ChuyenKhoa || null,
+                                MaPhongKham,
+                                maTaiKhoan
+                            ],
+                            (err2, result2) => {
+                                if (err2) {
+                                    return res.status(500).json({
+                                        error: "Lỗi khi tạo bác sĩ",
+                                        detail: err2
+                                    });
+                                }
+
+                                res.json({
+                                    message: "Tạo bác sĩ thành công",
+                                    MaTaiKhoan: maTaiKhoan,
+                                    MaBacSi: result2.insertId
+                                });
+                            }
+                        );
+                    }
+                );
+            }
         }
     );
 });
-
-//Test backend
-// {
-//   "TenDangNhap": "bs01@bacsi",
-//   "MatKhau": "matkhau1",
-//   "HoTen": "Nguyễn Văn A",
-//   "SoDienThoai": "0912345678",
-//   "Email": "nguyenvana@phongkham.vn",
-//   "ChuyenKhoa": "Nội tổng quát",
-//   "MaPhongKham": 1
-// }
-
 
 // =========================
 // API SỬA TÀI KHOẢN BÁC SĨ
 // =========================
 app.put("/bacsi/:id", (req, res) => {
     const maTaiKhoan = req.params.id;
-    const { TenDangNhap, MatKhau, VaiTro, HoTen, SoDienThoai, Email, ChuyenKhoa, MaPhongKham } = req.body;
+
+    let {
+        TenDangNhap,
+        MatKhau,
+        VaiTro,
+        HoTen,
+        SoDienThoai,
+        Email,
+        ChuyenKhoa,
+        MaPhongKham
+    } = req.body;
 
     if (!TenDangNhap || !MatKhau || !VaiTro) {
-        return res.status(400).json({ error: "TenDangNhap, MatKhau, VaiTro không được để trống" });
+        return res.status(400).json({
+            error: "TenDangNhap, MatKhau, VaiTro không được để trống"
+        });
     }
 
-    // 1. Kiểm tra trùng tên đăng nhập
+    if (!TenDangNhap.endsWith("@bacsi")) {
+        return res.status(400).json({
+            error: "TenDangNhap phải có hậu tố @bacsi"
+        });
+    }
+
+    if (hasWhitespace(TenDangNhap)) {
+        return res.status(400).json({
+            error: "TenDangNhap không được chứa khoảng trắng"
+        });
+    }
+
+    if (SoDienThoai) {
+        if (!isValidPhone(SoDienThoai)) {
+            return res.status(400).json({
+                error: "Số điện thoại phải gồm đúng 10 chữ số, không chứa chữ hoặc khoảng trắng"
+            });
+        }
+    } else {
+        SoDienThoai = null;
+    }
+
+    if (Email) {
+        Email = Email.toLowerCase().trim();
+
+        if (hasWhitespace(Email)) {
+            return res.status(400).json({
+                error: "Email không được chứa khoảng trắng"
+            });
+        }
+    } else {
+        Email = null;
+    }
+
     con.query(
         "SELECT MaTaiKhoan FROM TaiKhoan WHERE TenDangNhap = ? AND MaTaiKhoan <> ?",
         [TenDangNhap, maTaiKhoan],
         (err, result) => {
-            if (err) return res.status(500).json({ error: "Lỗi kiểm tra tên đăng nhập", detail: err });
-            if (result.length > 0) return res.status(400).json({ error: "Tên đăng nhập đã tồn tại" });
+            if (err) {
+                return res.status(500).json({
+                    error: "Lỗi kiểm tra tên đăng nhập",
+                    detail: err
+                });
+            }
 
-            // 2. Cập nhật bảng TaiKhoan
+            if (result.length > 0) {
+                return res.status(400).json({
+                    error: "Tên đăng nhập đã tồn tại"
+                });
+            }
+
+            if (MaPhongKham) {
+                con.query(
+                    "SELECT MaPhongKham FROM PhongKham WHERE MaPhongKham = ?",
+                    [MaPhongKham],
+                    (errPK, rowsPK) => {
+                        if (errPK) {
+                            return res.status(500).json({
+                                error: "Lỗi kiểm tra phòng khám",
+                                detail: errPK
+                            });
+                        }
+
+                        if (rowsPK.length === 0) {
+                            return res.status(400).json({
+                                error: "Phòng khám không tồn tại"
+                            });
+                        }
+
+                        updateTaiKhoanVaBacSi();
+                    }
+                );
+            } else {
+                MaPhongKham = null;
+                updateTaiKhoanVaBacSi();
+            }
+
+            function updateTaiKhoanVaBacSi() {
+                con.query(
+                    "UPDATE TaiKhoan SET TenDangNhap = ?, MatKhau = ?, VaiTro = ? WHERE MaTaiKhoan = ?",
+                    [TenDangNhap, MatKhau, VaiTro, maTaiKhoan],
+                    (err2, result2) => {
+                        if (err2) {
+                            return res.status(500).json({
+                                error: "Lỗi cập nhật tài khoản",
+                                detail: err2
+                            });
+                        }
+
+                        if (result2.affectedRows === 0) {
+                            return res.status(404).json({
+                                error: "Không tìm thấy tài khoản"
+                            });
+                        }
+
+                        con.query(
+                            `UPDATE BacSi 
+                            SET HoTen = ?, SoDienThoai = ?, Email = ?, ChuyenKhoa = ?, MaPhongKham = ? 
+                            WHERE MaTaiKhoan = ?`,
+                            [
+                                HoTen || null,
+                                SoDienThoai,
+                                Email,
+                                ChuyenKhoa || null,
+                                MaPhongKham,
+                                maTaiKhoan
+                            ],
+                            (err3) => {
+                                if (err3) {
+                                    return res.status(500).json({
+                                        error: "Lỗi cập nhật bác sĩ",
+                                        detail: err3
+                                    });
+                                }
+
+                                res.json({
+                                    message: "Cập nhật bác sĩ thành công",
+                                    MaTaiKhoan: maTaiKhoan
+                                });
+                            }
+                        );
+                    }
+                );
+            }
+        }
+    );
+});
+
+// =========================
+// API XÓA TÀI KHOẢN BÁC SĨ
+// =========================
+app.delete("/bacsi/:id", (req, res) => {
+    const maTaiKhoan = req.params.id;
+
+    con.query(
+        "DELETE FROM TaiKhoan WHERE MaTaiKhoan = ? AND VaiTro = 'Bác sĩ'",
+        [maTaiKhoan],
+        (err, result) => {
+            if (err) {
+                return res.status(500).json({
+                    error: "Lỗi khi xóa tài khoản",
+                    detail: err
+                });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    error: "Không tìm thấy bác sĩ với MaTaiKhoan này"
+                });
+            }
+
+            res.json({
+                message: "Xóa tài khoản thành công",
+                MaTaiKhoan: maTaiKhoan
+            });
+        }
+    );
+});
+
+// =========================
+// API LẤY DANH SÁCH BÁC SĨ KÈM TÀI KHOẢN
+// Không trả MatKhau
+// =========================
+app.get("/api/bacsi-taikhoan", (req, res) => {
+    const sql = `
+        SELECT 
+            tk.MaTaiKhoan,
+            tk.TenDangNhap,
+            tk.VaiTro,
+
+            bs.MaBacSi,
+            bs.HoTen,
+            bs.SoDienThoai,
+            bs.Email,
+            bs.ChuyenKhoa,
+            bs.MaPhongKham
+        FROM BacSi bs
+        JOIN TaiKhoan tk ON bs.MaTaiKhoan = tk.MaTaiKhoan
+    `;
+
+    con.query(sql, (err, results) => {
+        if (err) {
+            return res.status(500).json({
+                error: "Lỗi khi lấy danh sách bác sĩ kèm tài khoản",
+                detail: err
+            });
+        }
+
+        res.json(results);
+    });
+});
+
+// =========================
+// API ĐĂNG KÝ BỆNH NHÂN
+// DB gốc dùng GioiTinh: NAM / NU
+// =========================
+app.post("/TaoTaiKhoanKH", (req, res) => {
+    let {
+        TenDangNhap,
+        MatKhau,
+        HoTen,
+        NgaySinh,
+        GioiTinh,
+        SoDienThoai,
+        DiaChi
+    } = req.body;
+
+    if (!TenDangNhap || !MatKhau || !HoTen || !NgaySinh || !GioiTinh || !SoDienThoai || !DiaChi) {
+        return res.status(400).json({
+            error: "Phải nhập đủ TenDangNhap, MatKhau, HoTen, NgaySinh, GioiTinh, SoDienThoai, DiaChi"
+        });
+    }
+
+    if (hasWhitespace(TenDangNhap)) {
+        return res.status(400).json({
+            error: "TenDangNhap không được chứa khoảng trắng"
+        });
+    }
+
+    if (!TenDangNhap.endsWith("@khachhang")) {
+        return res.status(400).json({
+            error: "TenDangNhap phải có hậu tố @khachhang"
+        });
+    }
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (!dateRegex.test(NgaySinh)) {
+        return res.status(400).json({
+            error: "Ngày sinh phải theo định dạng YYYY-MM-DD"
+        });
+    }
+
+    if (!(GioiTinh === "NAM" || GioiTinh === "NU")) {
+        return res.status(400).json({
+            error: "Giới tính chỉ được nhập NAM hoặc NU"
+        });
+    }
+
+    if (!isValidPhone(SoDienThoai)) {
+        return res.status(400).json({
+            error: "Số điện thoại phải gồm đúng 10 chữ số, không chứa chữ hoặc khoảng trắng"
+        });
+    }
+
+    con.query(
+        "SELECT MaTaiKhoan FROM TaiKhoan WHERE TenDangNhap = ?",
+        [TenDangNhap],
+        (errCheck, rows) => {
+            if (errCheck) {
+                return res.status(500).json({
+                    error: "Lỗi khi kiểm tra tên đăng nhập",
+                    detail: errCheck
+                });
+            }
+
+            if (rows.length > 0) {
+                return res.status(400).json({
+                    error: "Tên đăng nhập đã tồn tại, vui lòng chọn tên khác"
+                });
+            }
+
             con.query(
-                "UPDATE TaiKhoan SET TenDangNhap = ?, MatKhau = ?, VaiTro = ? WHERE MaTaiKhoan = ?",
-                [TenDangNhap, MatKhau, VaiTro, maTaiKhoan],
-                (err2, result2) => {
-                    if (err2) return res.status(500).json({ error: "Lỗi cập nhật tài khoản", detail: err2 });
-                    if (result2.affectedRows === 0) return res.status(404).json({ error: "Không tìm thấy tài khoản" });
+                "INSERT INTO TaiKhoan (TenDangNhap, MatKhau, VaiTro) VALUES (?, ?, 'Khách hàng')",
+                [TenDangNhap, MatKhau],
+                (err, result) => {
+                    if (err) {
+                        return res.status(500).json({
+                            error: "Lỗi khi tạo tài khoản",
+                            detail: err
+                        });
+                    }
 
-                    // 3. Cập nhật bảng BacSi (nếu có thông tin bác sĩ)
+                    const maTaiKhoan = result.insertId;
+
                     con.query(
-                        "UPDATE BacSi SET HoTen = ?, SoDienThoai = ?, Email = ?, ChuyenKhoa = ?, MaPhongKham = ? WHERE MaTaiKhoan = ?",
-                        [HoTen || null, SoDienThoai || null, Email || null, ChuyenKhoa || null, MaPhongKham || null, maTaiKhoan],
-                        (err3, result3) => {
-                            if (err3) return res.status(500).json({ error: "Lỗi cập nhật bác sĩ", detail: err3 });
-                            res.json({ message: "Cập nhật bác sĩ thành công", MaTaiKhoan: maTaiKhoan });
+                        `INSERT INTO BenhNhan 
+                        (HoTen, NgaySinh, GioiTinh, SoDienThoai, DiaChi, MaTaiKhoan) 
+                        VALUES (?, ?, ?, ?, ?, ?)`,
+                        [
+                            HoTen,
+                            NgaySinh,
+                            GioiTinh,
+                            SoDienThoai,
+                            DiaChi,
+                            maTaiKhoan
+                        ],
+                        (err2, result2) => {
+                            if (err2) {
+                                return res.status(500).json({
+                                    error: "Lỗi khi tạo bệnh nhân",
+                                    detail: err2
+                                });
+                            }
+
+                            res.json({
+                                message: "Tạo bệnh nhân thành công",
+                                MaTaiKhoan: maTaiKhoan,
+                                MaBenhNhan: result2.insertId
+                            });
                         }
                     );
                 }
@@ -132,97 +521,28 @@ app.put("/bacsi/:id", (req, res) => {
 });
 
 // =========================
-// API XÓA TÀI KHOẢN Bác sĩ
-// =========================
-app.delete("/bacsi/:id", (req, res) => {
-    const maTaiKhoan = req.params.id;
-
-    // Thực hiện xóa tài khoản
-    con.query(
-        "DELETE FROM TaiKhoan WHERE MaTaiKhoan = ? and VaiTro = 'Bác sĩ'",
-        [maTaiKhoan],
-        (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: "Lỗi khi xóa tài khoản", detail: err });
-            }
-
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ error: "Không tìm thấy bác sĩ với MaTaiKhoan này" });
-            }
-
-            res.json({ message: "Xóa tài khoản thành công", MaTaiKhoan: maTaiKhoan });
-        }
-    );
-});
-
-
-
-// =========================
-// API ĐĂNG KÝ BỆNH NHÂN
-// =========================
-app.post("/TaoTaiKhoanKH", (req, res) => {
-    const { TenDangNhap, MatKhau, HoTen, NgaySinh, GioiTinh, SoDienThoai, DiaChi } = req.body;
-
-    // Kiểm tra các trường bắt buộc
-    if (!TenDangNhap || !MatKhau || !HoTen || !NgaySinh || !GioiTinh || !SoDienThoai || !DiaChi) {
-        return res.status(400).json({ error: "Phải nhập đủ TenDangNhap, MatKhau, HoTen, NgaySinh, GioiTinh, SoDienThoai, DiaChi" });
-    }
-
-    // Ràng buộc TenDangNhap phải có @khachhang
-    if (!TenDangNhap.endsWith("@khachhang")) {
-        return res.status(400).json({ error: "TenDangNhap phải có hậu tố @khachhang" });
-    }
-
-    // 1. Tạo tài khoản với vai trò mặc định là 'Khách hàng'
-    con.query(
-        "INSERT INTO TaiKhoan (TenDangNhap, MatKhau, VaiTro) VALUES (?, ?, 'Khách hàng')",
-        [TenDangNhap, MatKhau],
-        (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: "Lỗi khi tạo tài khoản", detail: err });
-            }
-
-            const maTaiKhoan = result.insertId;
-
-            // 2. Tạo bản ghi bệnh nhân liên kết với tài khoản vừa tạo
-            con.query(
-                "INSERT INTO BenhNhan (HoTen, NgaySinh, GioiTinh, SoDienThoai, DiaChi, MaTaiKhoan) VALUES (?, ?, ?, ?, ?, ?)",
-                [HoTen, NgaySinh, GioiTinh, SoDienThoai, DiaChi, maTaiKhoan],
-                (err2, result2) => {
-                    if (err2) {
-                        return res.status(500).json({ error: "Lỗi khi tạo bệnh nhân", detail: err2 });
-                    }
-                    res.json({ message: "Tạo bệnh nhân thành công", MaTaiKhoan: maTaiKhoan, MaBenhNhan: result2.insertId });
-                }
-            );
-        }
-    );
-});
-
-// {
-//   "TenDangNhap": "bn06@khachhang",
-//   "MatKhau": "matkhau1",
-//   "HoTen": "Nguyễn Văn B",
-//   "NgaySinh": "1990-05-20",
-//   "GioiTinh": "NAM",
-//   "SoDienThoai": "0912345678",
-//   "DiaChi": "123 Lý Thường Kiệt, HCM"
-// }
-
-// =========================
 // API LẤY DANH SÁCH TÀI KHOẢN
+// Không trả MatKhau
 // =========================
 app.get("/taikhoan", (req, res) => {
-    con.query("SELECT * FROM TaiKhoan", (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: "Lỗi khi lấy danh sách tài khoản", detail: err });
+    con.query(
+        "SELECT MaTaiKhoan, TenDangNhap, VaiTro FROM TaiKhoan",
+        (err, result) => {
+            if (err) {
+                return res.status(500).json({
+                    error: "Lỗi khi lấy danh sách tài khoản",
+                    detail: err
+                });
+            }
+
+            res.json(result);
         }
-        res.json(result);
-    });
+    );
 });
 
 // =========================
 // API LẤY DANH SÁCH LỊCH HẸN CHI TIẾT
+// Giữ từ file 1 vì file 2 đang comment route này
 // =========================
 app.get("/lichhen", (req, res) => {
     const sql = `
@@ -257,13 +577,18 @@ app.get("/lichhen", (req, res) => {
 
     con.query(sql, (err, result) => {
         if (err) {
-            return res.status(500).json({ error: "Lỗi khi lấy danh sách lịch hẹn", detail: err });
+            return res.status(500).json({
+                error: "Lỗi khi lấy danh sách lịch hẹn",
+                detail: err
+            });
         }
+
         res.json(result);
     });
 });
+
 // =========================
-// API THỐNG KÊ SỐ LỊCH HẸN CỦA BỆNH NHÂN GIẢM THEO MaBenhNhan
+// API THỐNG KÊ SỐ LỊCH HẸN CỦA BỆNH NHÂN
 // =========================
 app.get("/ThongKeSoLichHenCuaBenNhanGiamTheoMaBenhNhan", (req, res) => {
     const sql = `
@@ -279,15 +604,18 @@ app.get("/ThongKeSoLichHenCuaBenNhanGiamTheoMaBenhNhan", (req, res) => {
 
     con.query(sql, (err, result) => {
         if (err) {
-            return res.status(500).json({ error: "Lỗi khi thống kê lịch hẹn theo bệnh nhân", detail: err });
+            return res.status(500).json({
+                error: "Lỗi khi thống kê lịch hẹn theo bệnh nhân",
+                detail: err
+            });
         }
+
         res.json(result);
     });
 });
 
-
 // =========================
-// API THỐNG KÊ DỊCH VỤ ĐƯỢC SỬ DỤNG NHIỀU NHẤT GIẢM theo TenDichVu
+// API THỐNG KÊ DỊCH VỤ ĐƯỢC SỬ DỤNG NHIỀU NHẤT
 // =========================
 app.get("/ThongKeDichVuDuocSuDungNhieuNhatGiamMDV", (req, res) => {
     const sql = `
@@ -303,14 +631,18 @@ app.get("/ThongKeDichVuDuocSuDungNhieuNhatGiamMDV", (req, res) => {
 
     con.query(sql, (err, result) => {
         if (err) {
-            return res.status(500).json({ error: "Lỗi khi thống kê dịch vụ", detail: err });
+            return res.status(500).json({
+                error: "Lỗi khi thống kê dịch vụ",
+                detail: err
+            });
         }
+
         res.json(result);
     });
 });
 
 // =========================
-// API THỐNG KÊ LỊCH HẸN GIẢM THEO BÁC SĨ
+// API THỐNG KÊ LỊCH HẸN THEO BÁC SĨ
 // =========================
 app.get("/ThongKeLichHenGiamTheoBacSi", (req, res) => {
     const sql = `
@@ -326,15 +658,18 @@ app.get("/ThongKeLichHenGiamTheoBacSi", (req, res) => {
 
     con.query(sql, (err, result) => {
         if (err) {
-            return res.status(500).json({ error: "Lỗi khi thống kê lịch hẹn theo bác sĩ", detail: err });
+            return res.status(500).json({
+                error: "Lỗi khi thống kê lịch hẹn theo bác sĩ",
+                detail: err
+            });
         }
+
         res.json(result);
     });
 });
 
-
 // =========================
-// API THỐNG KÊ KHUNG GIỜ ĐƯỢC ĐẶT NHIỀU NHẤT GIẢM THEO KHUNG GIỜ
+// API THỐNG KÊ KHUNG GIỜ ĐƯỢC ĐẶT NHIỀU NHẤT
 // =========================
 app.get("/KhungGioDuocDatNhieuNhatGiamTheoKhungGio", (req, res) => {
     const sql = `
@@ -351,14 +686,36 @@ app.get("/KhungGioDuocDatNhieuNhatGiamTheoKhungGio", (req, res) => {
 
     con.query(sql, (err, result) => {
         if (err) {
-            return res.status(500).json({ error: "Lỗi khi thống kê khung giờ", detail: err });
+            return res.status(500).json({
+                error: "Lỗi khi thống kê khung giờ",
+                detail: err
+            });
         }
+
         res.json(result);
     });
 });
 
+// lấy list services
+app.get("/api/services", (req, res) => {
+  const sql = `
+    SELECT dv.MaDichVu, dv.TenDichVu, dv.Gia, dv.MoTa, dv.MaBacSi, bs.HoTen AS TenBacSi
+    FROM DichVu dv
+    LEFT JOIN BacSi bs ON dv.MaBacSi = bs.MaBacSi
+    ORDER BY dv.TenDichVu ASC
+  `;
 
-//server
-app.listen(5555, () => {
-    console.log('Server running at http://localhost:5555');
+  con.query(sql, (err, result) => {
+    if (err) return res.status(500).json({ error: "Lỗi khi lấy danh sách dịch vụ" });
+    res.json(result);
+  });
+});
+
+// =========================
+// SERVER
+// =========================
+const PORT = process.env.PORT || 5555;
+
+app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
 });
